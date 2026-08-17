@@ -31,9 +31,40 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 
 from live_scanner_polling import (
-    SymbolState, evaluate, load_config, get_access_token,
-    load_today_prep, fetch_all_quotes, update_states_from_quotes,
+    SymbolState, evaluate, load_today_prep, fetch_all_quotes, update_states_from_quotes,
 )
+
+SCRIPT_DIR2 = SCRIPT_DIR  # (kept name distinct from live_scanner_polling's own SCRIPT_DIR)
+CONFIG_FILE = os.path.join(SCRIPT_DIR2, "config.txt")
+
+
+def load_config():
+    """Cloud-aware version - live_scanner_polling.py's own load_config()
+    was written for local/console use only (unconditionally opens
+    config.txt, crashes if it's missing) since it assumes it's always run
+    locally. On Streamlit Cloud there is no config.txt at all (Secrets
+    are used instead), so we need our own guarded version here rather
+    than importing that one."""
+    config = {}
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, val = line.split("=", 1)
+                config[key.strip()] = val.strip()
+    return config
+
+
+def get_access_token(config):
+    try:
+        if "ACCESS_TOKEN" in st.secrets:
+            return st.secrets["ACCESS_TOKEN"]
+    except Exception:
+        pass
+    return config.get("ACCESS_TOKEN") or config.get("UPSTOX_ACCESS_TOKEN")
+
 
 IST = ZoneInfo("Asia/Kolkata")
 POLL_INTERVAL_SEC = 10
